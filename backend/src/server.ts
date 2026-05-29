@@ -30,6 +30,7 @@ import vagaRadarRoutes from './routes/vagaRadar.routes';
 import conexaoCirurgicaRoutes from './routes/conexaoCirurgica.routes';
 import indeedRoutes from './routes/indeed.routes';
 import geekHunterRoutes from './routes/geekHunter.routes';
+import platformsRoutes from './routes/platforms.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -118,6 +119,7 @@ app.use('/api/vaga-radar', vagaRadarRoutes);
 app.use('/api/conexao-cirurgica', conexaoCirurgicaRoutes);
 app.use('/api/indeed', indeedRoutes);
 app.use('/api/geekhunter', geekHunterRoutes);
+app.use('/api/platforms', platformsRoutes);
 
 // ─── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
