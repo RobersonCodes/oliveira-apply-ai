@@ -1,0 +1,323 @@
+// Oliveira Apply AI — Prisma Schema
+// PostgreSQL 15
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── ENUMS ───────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum PlanType {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPLIED
+  VIEWED
+  INTERVIEW
+  OFFER
+  REJECTED
+  WITHDRAWN
+}
+
+enum AutomationStatus {
+  IDLE
+  RUNNING
+  PAUSED
+  COMPLETED
+  FAILED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  FREELANCE
+  INTERNSHIP
+}
+
+enum SeniorityLevel {
+  INTERN
+  JUNIOR
+  MID
+  SENIOR
+  LEAD
+  MANAGER
+  DIRECTOR
+  VP
+  C_LEVEL
+}
+
+// ─── MODELS ──────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  password         String
+  name             String
+  avatar           String?
+  role             UserRole  @default(USER)
+  emailVerified    Boolean   @default(false)
+  emailVerifiedAt  DateTime?
+  isActive         Boolean   @default(true)
+  lastLoginAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  profile          Profile?
+  subscription     Subscription?
+  applications     Application[]
+  automations      Automation[]
+  resumes          Resume[]
+  linkedinAccount  LinkedinAccount?
+  refreshTokens    RefreshToken[]
+  auditLogs        AuditLog[]
+  notifications    Notification[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model Profile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  phone            String?
+  location         String?
+  linkedinUrl      String?
+  githubUrl        String?
+  portfolioUrl     String?
+  bio              String?
+  skills           String[]
+  languages        String[]
+  yearsExperience  Int?
+  seniorityLevel   SeniorityLevel?
+  desiredSalaryMin Int?
+  desiredSalaryMax String?
+  desiredRoles     String[]
+  desiredLocations String[]
+  remoteOnly       Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+model Subscription {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  plan                 PlanType  @default(FREE)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  stripePriceId        String?
+  status               String    @default("active")
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  trialStart           DateTime?
+  trialEnd             DateTime?
+  applicationsUsed     Int       @default(0)
+  applicationsLimit    Int       @default(10)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model LinkedinAccount {
+  id           String    @id @default(cuid())
+  userId       String    @unique
+  email        String
+  password     String    // encrypted
+  cookies      Json?
+  sessionData  Json?
+  isActive     Boolean   @default(true)
+  lastUsedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("linkedin_accounts")
+}
+
+model Resume {
+  id           String    @id @default(cuid())
+  userId       String
+  name         String
+  fileUrl      String?
+  fileKey      String?
+  content      Json?     // parsed content
+  rawText      String?
+  isDefault    Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications Application[]
+
+  @@map("resumes")
+}
+
+model Automation {
+  id               String           @id @default(cuid())
+  userId           String
+  name             String
+  status           AutomationStatus @default(IDLE)
+  platform         String           @default("linkedin")
+  config           Json
+  // config includes: keywords, location, remote, salaryMin, salaryMax,
+  // seniorityLevels, jobTypes, easyApplyOnly, maxApplications, delay
+  jobsFound        Int              @default(0)
+  jobsApplied      Int              @default(0)
+  jobsSkipped      Int              @default(0)
+  jobsFailed       Int              @default(0)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?
+  isScheduled      Boolean          @default(false)
+  scheduleConfig   Json?
+  errorMessage     String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  applications     Application[]
+  logs             AutomationLog[]
+
+  @@index([userId, status])
+  @@map("automations")
+}
+
+model AutomationLog {
+  id           String    @id @default(cuid())
+  automationId String
+  level        String    // info, warn, error, success
+  message      String
+  data         Json?
+  createdAt    DateTime  @default(now())
+
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+
+  @@index([automationId, createdAt])
+  @@map("automation_logs")
+}
+
+model Application {
+  id              String            @id @default(cuid())
+  userId          String
+  automationId    String?
+  resumeId        String?
+  
+  // Job info
+  jobTitle        String
+  company         String
+  companyLogo     String?
+  location        String?
+  isRemote        Boolean           @default(false)
+  salaryMin       Int?
+  salaryMax       Int?
+  salaryCurrency  String?
+  jobType         JobType?
+  seniorityLevel  SeniorityLevel?
+  jobUrl          String?
+  jobDescription  String?
+  platform        String            @default("linkedin")
+  externalId      String?           // LinkedIn job ID
+  
+  // Application
+  status          ApplicationStatus @default(PENDING)
+  appliedAt       DateTime?
+  coverLetter     String?
+  adaptedResume   Json?
+  aiScore         Float?            // AI match score 0-100
+  aiNotes         String?
+  
+  // Tracking
+  viewedAt        DateTime?
+  responseAt      DateTime?
+  interviewAt     DateTime?
+  offerAt         DateTime?
+  rejectedAt      DateTime?
+  
+  // Notes
+  notes           String?
+  
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user            User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  automation      Automation?       @relation(fields: [automationId], references: [id])
+  resume          Resume?           @relation(fields: [resumeId], references: [id])
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@map("applications")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String?
+  entityId  String?
+  oldData   Json?
+  newData   Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   // success, info, warning, error
+  read      Boolean  @default(false)
+  data      Json?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@map("notifications")
+}
