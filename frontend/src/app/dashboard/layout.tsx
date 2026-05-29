@@ -5,13 +5,15 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, Zap, FileText, BarChart3, Settings,
   Bell, LogOut, ChevronRight, Bot, Shield, Users,
-  Menu, X, Briefcase, Brain,
+  Menu, X, Briefcase, Brain, Globe,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/dashboard/apply', icon: Zap, label: 'Auto Apply' },
   { href: '/dashboard/neural', icon: Brain, label: 'Job Match Neural', badge: 'NEW' },
+  { href: '/dashboard/indeed', icon: Globe, label: 'Indeed Global', badge: 'NEW' },
+  { href: '/dashboard/geekhunter', icon: Zap, label: 'GeekHunter', badge: 'NEW' },
   { href: '/dashboard/resume', icon: FileText, label: 'Currículo IA' },
   { href: '/dashboard/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/dashboard/applications', icon: Briefcase, label: 'Candidaturas' },

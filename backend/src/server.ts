@@ -24,6 +24,12 @@ import adminRoutes from './routes/admin.routes';
 import billingRoutes from './routes/billing.routes';
 import notificationRoutes from './routes/notification.routes';
 import neuralRoutes from './routes/neural.routes';
+import recruiterVisionRoutes from './routes/recruiterVision.routes';
+import shadowApplyRoutes from './routes/shadowApply.routes';
+import vagaRadarRoutes from './routes/vagaRadar.routes';
+import conexaoCirurgicaRoutes from './routes/conexaoCirurgica.routes';
+import indeedRoutes from './routes/indeed.routes';
+import geekHunterRoutes from './routes/geekHunter.routes';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -106,6 +112,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/billing', billingRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/neural', neuralRoutes);
+app.use('/api/recruiter-vision', recruiterVisionRoutes);
+app.use('/api/shadow-apply', shadowApplyRoutes);
+app.use('/api/vaga-radar', vagaRadarRoutes);
+app.use('/api/conexao-cirurgica', conexaoCirurgicaRoutes);
+app.use('/api/indeed', indeedRoutes);
+app.use('/api/geekhunter', geekHunterRoutes);
 
 // ─── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
