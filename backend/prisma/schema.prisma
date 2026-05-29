@@ -80,15 +80,17 @@ model User {
   updatedAt        DateTime  @updatedAt
 
   // Relations
-  profile          Profile?
-  subscription     Subscription?
-  applications     Application[]
-  automations      Automation[]
-  resumes          Resume[]
-  linkedinAccount  LinkedinAccount?
-  refreshTokens    RefreshToken[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
+  profile           Profile?
+  subscription      Subscription?
+  applications      Application[]
+  automations       Automation[]
+  resumes           Resume[]
+  linkedinAccount   LinkedinAccount?
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  neuralModel       UserNeuralModel?
+  neuralPredictions NeuralPrediction[]
 
   @@index([email])
   @@map("users")
@@ -147,7 +149,7 @@ model LinkedinAccount {
   id           String    @id @default(cuid())
   userId       String    @unique
   email        String
-  password     String    // encrypted
+  password     String
   cookies      Json?
   sessionData  Json?
   isActive     Boolean   @default(true)
@@ -166,7 +168,7 @@ model Resume {
   name         String
   fileUrl      String?
   fileKey      String?
-  content      Json?     // parsed content
+  content      Json?
   rawText      String?
   isDefault    Boolean   @default(false)
   createdAt    DateTime  @default(now())
@@ -185,8 +187,6 @@ model Automation {
   status           AutomationStatus @default(IDLE)
   platform         String           @default("linkedin")
   config           Json
-  // config includes: keywords, location, remote, salaryMin, salaryMax,
-  // seniorityLevels, jobTypes, easyApplyOnly, maxApplications, delay
   jobsFound        Int              @default(0)
   jobsApplied      Int              @default(0)
   jobsSkipped      Int              @default(0)
@@ -212,7 +212,7 @@ model Automation {
 model AutomationLog {
   id           String    @id @default(cuid())
   automationId String
-  level        String    // info, warn, error, success
+  level        String
   message      String
   data         Json?
   createdAt    DateTime  @default(now())
@@ -228,8 +228,6 @@ model Application {
   userId          String
   automationId    String?
   resumeId        String?
-  
-  // Job info
   jobTitle        String
   company         String
   companyLogo     String?
@@ -243,26 +241,19 @@ model Application {
   jobUrl          String?
   jobDescription  String?
   platform        String            @default("linkedin")
-  externalId      String?           // LinkedIn job ID
-  
-  // Application
+  externalId      String?
   status          ApplicationStatus @default(PENDING)
   appliedAt       DateTime?
   coverLetter     String?
   adaptedResume   Json?
-  aiScore         Float?            // AI match score 0-100
+  aiScore         Float?
   aiNotes         String?
-  
-  // Tracking
   viewedAt        DateTime?
   responseAt      DateTime?
   interviewAt     DateTime?
   offerAt         DateTime?
   rejectedAt      DateTime?
-  
-  // Notes
   notes           String?
-  
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -311,7 +302,7 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   // success, info, warning, error
+  type      String
   read      Boolean  @default(false)
   data      Json?
   createdAt DateTime @default(now())
@@ -320,4 +311,59 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+// ─── NEURAL AI MODELS ────────────────────────────────────────────────────────
+
+model UserNeuralModel {
+  id                     String   @id @default(cuid())
+  userId                 String   @unique
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weights                Json     @default("{}")
+  totalSamples           Int      @default(0)
+  accuracy               Float    @default(0)
+  lastTrainedAt          DateTime?
+  featureImportance      Json     @default("{}")
+  scoreThreshold         Int      @default(70)
+  autoSkipBelowThreshold Boolean  @default(true)
+  learningRate           Float    @default(0.01)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  trainingData NeuralTrainingSample[]
+
+  @@map("user_neural_models")
+}
+
+model NeuralTrainingSample {
+  id             String          @id @default(cuid())
+  modelId        String
+  model          UserNeuralModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  applicationId  String?         @unique
+  features       Json
+  outcome        String          @default("PENDING")
+  predictedScore Float?
+  actualScore    Float?
+  sampleWeight   Float           @default(1.0)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("neural_training_samples")
+}
+
+model NeuralPrediction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobTitle     String
+  company      String
+  features     Json
+  score        Float
+  confidence   Float
+  shouldApply  Boolean
+  reasoning    Json
+  userDecision String?
+  createdAt    DateTime @default(now())
+
+  @@map("neural_predictions")
 }
