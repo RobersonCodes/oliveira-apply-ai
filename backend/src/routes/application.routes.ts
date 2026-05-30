@@ -1,14 +1,11 @@
-import { Router } from 'express';
-import { authenticate } from '../middlewares/auth.middleware';
-import { applicationController } from '../controllers/application.controller';
-
+﻿import { Router } from "express";
+import { authenticate } from "../middlewares/auth.middleware";
+import { applicationController } from "../controllers/application.controller";
 const router = Router();
 router.use(authenticate);
-
-router.get('/', applicationController.list);
-router.get('/stats', applicationController.getStats);
-router.get('/:id', applicationController.getById);
-router.patch('/:id/status', applicationController.updateStatus);
-router.delete('/:id', applicationController.delete);
-
+router.get("/", applicationController.list);
+router.get("/stats", applicationController.getStats);
+router.get("/:id", applicationController.getById);
+router.patch("/:id/status", applicationController.updateStatus);
+router.delete("/:id", applicationController.delete);
 export default router;

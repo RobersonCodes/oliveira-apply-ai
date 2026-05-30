@@ -16,6 +16,7 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "axios": "^1.16.1",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.1.0",
     "compression": "^1.7.4",
