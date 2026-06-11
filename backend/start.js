@@ -11,8 +11,14 @@ function cleanEnv(key) {
 cleanEnv('DATABASE_URL');
 cleanEnv('REDIS_URL');
 
-process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:EZWmQbhKGsFQZqiephZKccvRWUMaKZwl@zephyr.proxy.rlwy.net:27501/railway";
-process.env.REDIS_URL = process.env.REDIS_URL || "redis://default:LIYpjkwJPbNtYFOUxuzccCyyZUZRtdqZ@zephyr.proxy.rlwy.net:20290";
+if (!process.env.DATABASE_URL) {
+  console.error('ERROR: DATABASE_URL environment variable is not set.');
+  process.exit(1);
+}
+if (!process.env.REDIS_URL) {
+  console.error('ERROR: REDIS_URL environment variable is not set.');
+  process.exit(1);
+}
 process.env.JWT_SECRET = process.env.JWT_SECRET || "oliveira-super-secret-jwt-2024";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "oliveira-refresh-secret-2024";
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "oliveira-encrypt-key-32chars!!!";
