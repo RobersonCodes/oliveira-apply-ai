@@ -1,19 +1,4 @@
-﻿// Sanitizar vars que o Railway pode injetar com formato errado
-function cleanEnv(key) {
-  let val = process.env[key];
-  if (!val) return;
-  // Remove: KEY="value" ou KEY=value do início
-  val = val.replace(new RegExp('^' + key + '='), '');
-  // Remove aspas externas
-  val = val.replace(/^"(.*)"$/, '$1');
-  process.env[key] = val;
-}
-cleanEnv('DATABASE_URL');
-cleanEnv('REDIS_URL');
-
-process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:EZWmQbhKGsFQZqiephZKccvRWUMaKZwl@zephyr.proxy.rlwy.net:27501/railway";
-process.env.REDIS_URL = process.env.REDIS_URL || "redis://default:LIYpjkwJPbNtYFOUxuzccCyyZUZRtdqZ@zephyr.proxy.rlwy.net:20290";
-process.env.JWT_SECRET = process.env.JWT_SECRET || "oliveira-super-secret-jwt-2024";
+﻿process.env.JWT_SECRET = process.env.JWT_SECRET || "oliveira-super-secret-jwt-2024";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "oliveira-refresh-secret-2024";
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "oliveira-encrypt-key-32chars!!!";
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
