@@ -1,0 +1,3 @@
+﻿process.on("uncaughtException", (e) => { console.error("ERRO:", e.message); process.exit(1); });
+process.on("unhandledRejection", (e: any) => { console.error("REJEICAO:", e?.message || e); process.exit(1); });
+import("./src/server.ts").then(() => { console.log("OK - servidor importado"); setTimeout(()=>{}, 10000); }).catch(e => { console.error("FALHA:", e.message); process.exit(1); });

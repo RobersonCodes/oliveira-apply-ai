@@ -1,0 +1,88 @@
+// Adicionar ao schema.prisma existente:
+
+// Modelo de ML pessoal por usuário
+model UserNeuralModel {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Pesos do modelo serializado (JSON)
+  weights     Json     @default("{}")
+  
+  // Métricas do modelo
+  totalSamples     Int      @default(0)
+  accuracy         Float    @default(0)
+  lastTrainedAt    DateTime?
+  
+  // Feature importance scores
+  featureImportance Json    @default("{}")
+  
+  // Threshold personalizado (0-100)
+  scoreThreshold   Int      @default(70)
+  
+  // Configurações
+  autoSkipBelowThreshold Boolean @default(true)
+  learningRate     Float    @default(0.01)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  trainingData NeuralTrainingSample[]
+}
+
+// Cada candidatura vira um sample de treino
+model NeuralTrainingSample {
+  id        String   @id @default(cuid())
+  modelId   String
+  model     UserNeuralModel @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  
+  applicationId String? @unique
+  
+  // Features extraídas da vaga (vetor)
+  features  Json     // { companySize, isRemote, salaryRange, seniorityLevel, techStack[], ... }
+  
+  // Label (resultado real)
+  outcome   NeuralOutcome @default(PENDING)
+  
+  // Score que o modelo previu vs real
+  predictedScore Float?
+  actualScore    Float?
+  
+  // Peso deste sample no treino (recentes têm mais peso)
+  sampleWeight   Float  @default(1.0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum NeuralOutcome {
+  PENDING        // ainda aguardando resultado
+  NO_RESPONSE    // sem resposta (ghosted) — negativo fraco
+  REJECTED       // rejeitado — negativo forte
+  VIEWED         // visualizado — sinal positivo fraco
+  INTERVIEW      // entrevista — positivo forte
+  OFFER          // oferta — positivo máximo
+}
+
+// Histórico de predições para auditoria e melhoria
+model NeuralPrediction {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Vaga analisada
+  jobTitle     String
+  company      String
+  features     Json
+  
+  // Resultado da predição
+  score        Float    // 0-100
+  confidence   Float    // 0-1
+  shouldApply  Boolean
+  reasoning    Json     // { topFactors: [], warnings: [] }
+  
+  // Se foi aceita ou ignorada
+  userDecision String?  // 'accepted' | 'overridden'
+  
+  createdAt    DateTime @default(now())
+}
