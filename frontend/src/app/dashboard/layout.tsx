@@ -1,6 +1,7 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -8,6 +9,7 @@ import {
   Bell, LogOut, ChevronRight, Brain, Globe, TrendingUp,
   Menu, X, Briefcase, Shield, Ghost, Radar, Network,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -34,11 +36,39 @@ const bottomItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, logout } = useAuthStore();
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const { user, logout, fetchMe } = useAuthStore();
+
+  // ── Guard de onboarding — só para usuários novos ──────────────────────────
+  useEffect(() => {
+    async function checkOnboarding() {
+      if (typeof window === 'undefined') return;
+      if (!localStorage.getItem('accessToken')) {
+        router.push('/auth/login');
+        return;
+      }
+      try {
+        const { data } = await api.get('/onboarding/status');
+        if (!data.data.onboardingCompleted) {
+          router.push('/onboarding');
+          return;
+        }
+      } catch {
+        // em caso de erro, deixa entrar — o auth interceptor cuida do 401
+      } finally {
+        setOnboardingChecked(true);
+      }
+    }
+    checkOnboarding();
+  }, []);
+
   const initials = user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() ?? 'OL';
   const firstName = user?.name?.split(' ')[0] ?? 'Usuário';
-  const planLabel = user?.subscription?.plan ? { FREE: 'Gratuito', STARTER: 'Starter', PRO: 'Pro', ENTERPRISE: 'Enterprise' }[user.subscription.plan] ?? user.subscription.plan : 'Gratuito';
+  const planLabel = user?.subscription?.plan
+    ? { FREE: 'Gratuito', STARTER: 'Starter', PRO: 'Pro', ENTERPRISE: 'Enterprise' }[user.subscription.plan] ?? user.subscription.plan
+    : 'Gratuito';
 
   const NavLink = ({ href, icon: Icon, label, badge }: any) => {
     const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
@@ -63,6 +93,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </Link>
     );
   };
+
+  // Enquanto verifica onboarding, mostra spinner
+  if (!onboardingChecked) {
+    return (
+      <div className="min-h-screen bg-[#080812] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080812] flex">

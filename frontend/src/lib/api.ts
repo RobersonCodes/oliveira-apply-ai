@@ -98,7 +98,8 @@ export function extractError(error: unknown): string {
   return 'Erro desconhecido';
 }
 
-// API helpers
+// ─── API helpers ──────────────────────────────────────────────────────────────
+
 export const authApi = {
   login: (data: { email: string; password: string }) => api.post('/auth/login', data),
   register: (data: any) => api.post('/auth/register', data),
@@ -162,4 +163,30 @@ export const userApi = {
   updateProfile: (data: any) => api.put('/users/profile', data),
   changePassword: (data: any) => api.post('/users/change-password', data),
   getUsage: () => api.get('/users/usage'),
+};
+
+export const onboardingApi = {
+  getStatus: () => api.get('/onboarding/status'),
+  complete: (data: {
+    jobTitle: string;
+    area?: string;
+    minSalary?: number;
+    workRegime?: string;
+    city?: string;
+    state?: string;
+    remoteOnly?: boolean;
+    autoApplyEnabled?: boolean;
+    platforms?: string[];
+  }) => api.post('/onboarding/complete', data),
+  updatePreferences: (data: Partial<{
+    jobTitle: string;
+    area: string;
+    minSalary: number;
+    workRegime: string;
+    city: string;
+    state: string;
+    remoteOnly: boolean;
+    autoApplyEnabled: boolean;
+    platforms: string[];
+  }>) => api.put('/onboarding/preferences', data),
 };
