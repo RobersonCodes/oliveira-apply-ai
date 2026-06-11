@@ -12,6 +12,7 @@ import fs from 'fs';
 import { connectDatabase } from './config/database';
 import logger from './utils/logger';
 import { errorHandler } from './middlewares/errorHandler';
+import { startEmailDigestJob } from './jobs/emailDigest.job';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -43,7 +44,7 @@ const PORT = process.env.PORT || 3001;
   if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
 });
 
-// ─── CORS — aceita qualquer origem (segurança via JWT) ───────────────────────
+// ─── CORS ────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: true,
   credentials: true,
@@ -57,7 +58,7 @@ app.options('*', cors({
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// ─── Security ───────────────────────────────────────────────────────────────
+// ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -82,13 +83,13 @@ const authLimiter = rateLimit({
   message: { success: false, message: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 });
 
-// ─── Body Parsing ───────────────────────────────────────────────────────────
+// ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(compression() as any);
 
-// ─── Logging ────────────────────────────────────────────────────────────────
+// ─── Logging ──────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined', {
     stream: { write: (msg) => logger.info(msg.trim()) },
@@ -96,10 +97,10 @@ if (process.env.NODE_ENV !== 'test') {
   }));
 }
 
-// ─── Static files ───────────────────────────────────────────────────────────
+// ─── Static files ─────────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
-// ─── Health ─────────────────────────────────────────────────────────────────
+// ─── Health ───────────────────────────────────────────────────────────────────
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
@@ -109,7 +110,7 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// ─── API Routes ─────────────────────────────────────────────────────────────
+// ─── API Routes ───────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', applicationRoutes);
@@ -129,17 +130,21 @@ app.use('/api/geekhunter', geekHunterRoutes);
 app.use('/api/platforms', platformsRoutes);
 app.use('/api/onboarding', onboardingRoutes);
 
-// ─── 404 ────────────────────────────────────────────────────────────────────
+// ─── 404 ──────────────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Rota não encontrada' });
 });
 
-// ─── Error Handler ──────────────────────────────────────────────────────────
+// ─── Error Handler ────────────────────────────────────────────────────────────
 app.use(errorHandler);
 
-// ─── Start ──────────────────────────────────────────────────────────────────
+// ─── Start ────────────────────────────────────────────────────────────────────
 async function bootstrap() {
   await connectDatabase();
+
+  // Iniciar cron jobs
+  startEmailDigestJob();
+
   app.listen(PORT, () => {
     logger.info(`🚀 Server running on http://localhost:${PORT}`);
     logger.info(`   Environment: ${process.env.NODE_ENV || 'development'}`);

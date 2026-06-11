@@ -1,4 +1,4 @@
-﻿process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:EZWmQbhKGsFQZqiephZKccvRWUMaKZwl@zephyr.proxy.rlwy.net:27501/railway";
+process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://postgres:EZWmQbhKGsFQZqiephZKccvRWUMaKZwl@zephyr.proxy.rlwy.net:27501/railway";
 process.env.REDIS_URL = process.env.REDIS_URL || "redis://default:LIYpjkwJPbNtYFOUxuzccCyyZUZRtdqZ@zephyr.proxy.rlwy.net:20290";
 process.env.JWT_SECRET = process.env.JWT_SECRET || "oliveira-super-secret-jwt-2024";
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "oliveira-refresh-secret-2024";
@@ -8,6 +8,11 @@ process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 process.env.STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || "";
 process.env.STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET || "";
 process.env.SERPAPI_KEY = process.env.SERPAPI_KEY || "";
+process.env.SMTP_HOST = process.env.SMTP_HOST || "smtp-mail.outlook.com";
+process.env.SMTP_PORT = process.env.SMTP_PORT || "587";
+process.env.SMTP_USER = process.env.SMTP_USER || "";
+process.env.SMTP_PASS = process.env.SMTP_PASS || "";
+process.env.FROM_EMAIL = process.env.FROM_EMAIL || "";
 
 process.on("uncaughtException", (e) => { console.error("UNCAUGHT:", e); process.exit(1); });
 process.on("unhandledRejection", (e) => { console.error("UNHANDLED:", e); process.exit(1); });
