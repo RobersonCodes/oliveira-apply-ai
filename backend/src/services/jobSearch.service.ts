@@ -1,3 +1,4 @@
+// src/services/jobSearch.service.ts
 import axios from 'axios';
 
 export interface JobResult {
@@ -13,155 +14,124 @@ export interface JobResult {
   jobType?: string;
 }
 
-// Indeed via SerpAPI (free tier: 100 searches/month)
-async function searchIndeed(query: string, location: string, limit = 10): Promise<JobResult[]> {
-  const SERPAPI_KEY = process.env.SERPAPI_KEY || '';
-  console.log('[jobSearch] SERPAPI_KEY present:', !!SERPAPI_KEY);
-  if (!SERPAPI_KEY) {
-    // Fallback: scrape Indeed directly
-    return scrapeIndeed(query, location, limit);
+// ─── JSearch (RapidAPI) ───────────────────────────────────────────────────────
+// Cobre Indeed, LinkedIn, Glassdoor e outros em uma só chamada
+// Plano gratuito: 200 requests/mês
+
+async function searchJSearch(query: string, location: string, limit = 10): Promise<JobResult[]> {
+  const JSEARCH_KEY = process.env.JSEARCH_API_KEY || '';
+  if (!JSEARCH_KEY) {
+    console.warn('[jobSearch] JSEARCH_API_KEY not set — using fallback');
+    return fallbackResults(query, location);
   }
 
   try {
-    const { data } = await axios.get('https://serpapi.com/search', {
+    const searchQuery = location
+      ? `${query} in ${location}`
+      : `${query} in Brazil`;
+
+    const { data } = await axios.get('https://jsearch.p.rapidapi.com/search', {
       params: {
-        engine: 'indeed',
-        q: query,
-        l: location || 'Brasil',
-        api_key: SERPAPI_KEY,
-        num: limit,
-        hl: 'pt',
-        gl: 'br',
-      },
-      timeout: 10000,
-    });
-
-    return (data.jobs_results || []).slice(0, limit).map((job: any, i: number) => ({
-      id: `indeed-${i}-${Date.now()}`,
-      title: job.title || '',
-      company: job.company_name || '',
-      location: job.location || location,
-      salary: job.salary || undefined,
-      description: job.description || job.snippet || '',
-      url: job.link || `https://br.indeed.com/jobs?q=${encodeURIComponent(query)}`,
-      source: 'indeed' as const,
-      postedAt: job.date || undefined,
-      jobType: job.job_type || undefined,
-    }));
-  } catch {
-    return scrapeIndeed(query, location, limit);
-  }
-}
-
-// Indeed scraping fallback (without API key)
-async function scrapeIndeed(query: string, location: string, limit: number): Promise<JobResult[]> {
-  // Always return at least a direct search link
-  const searchUrl = `https://br.indeed.com/jobs?q=${encodeURIComponent(query)}&l=${encodeURIComponent(location || '')}`;
-  
-  const fallback: JobResult[] = [{
-    id: `indeed-link-${Date.now()}`,
-    title: `Ver vagas de "${query}" no Indeed`,
-    company: 'Indeed Brasil',
-    location: location || 'Brasil',
-    description: `Clique em "Ver vaga" para buscar diretamente no Indeed Brasil. Mostrará todas as vagas disponíveis para "${query}"${location ? ` em ${location}` : ''}.`,
-    url: searchUrl,
-    source: 'indeed',
-    postedAt: 'Agora',
-  }];
-
-  try {
-    const { data } = await axios.get(`https://br.indeed.com/jobs`, {
-      params: { q: query, l: location || '' },
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept-Language': 'pt-BR,pt;q=0.9',
-        'Accept': 'text/html',
-      },
-      timeout: 6000,
-    });
-
-    const jobs: JobResult[] = [];
-    // Try to extract job IDs from HTML
-    const idMatches = [...data.matchAll(/data-jk="([a-z0-9]+)"/g)];
-    const titleMatches = [...data.matchAll(/<span[^>]*class="[^"]*title[^"]*"[^>]*>([^<]+)<\/span>/g)];
-    const companyMatches = [...data.matchAll(/data-testid="company-name"[^>]*>([^<]+)<\/span>/g)];
-
-    idMatches.slice(0, limit).forEach((m, i) => {
-      jobs.push({
-        id: `indeed-${m[1]}`,
-        title: titleMatches[i]?.[1]?.trim() || `Vaga ${query} #${i + 1}`,
-        company: companyMatches[i]?.[1]?.trim() || 'Empresa não informada',
-        location: location || 'Brasil',
-        description: '',
-        url: `https://br.indeed.com/viewjob?jk=${m[1]}`,
-        source: 'indeed',
-      });
-    });
-
-    return jobs.length > 0 ? jobs : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-// InfoJobs via API pública
-async function searchInfojobs(query: string, location: string, limit = 10): Promise<JobResult[]> {
-  try {
-    const { data } = await axios.get('https://api.infojobs.com.br/api/7/offer', {
-      params: {
-        q: query,
-        city: location || '',
-        maxResults: limit,
+        query: searchQuery,
+        page: '1',
+        num_pages: '1',
         country: 'br',
+        language: 'pt',
+        date_posted: 'month',
       },
       headers: {
-        'Authorization': `Basic ${Buffer.from(`${process.env.INFOJOBS_CLIENT_ID || ''}:${process.env.INFOJOBS_CLIENT_SECRET || ''}`).toString('base64')}`,
-        'Content-Type': 'application/json',
+        'X-RapidAPI-Key': JSEARCH_KEY,
+        'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
       },
-      timeout: 8000,
+      timeout: 12000,
     });
 
-    return (data.items || []).slice(0, limit).map((job: any) => ({
-      id: `infojobs-${job.id}`,
-      title: job.title || '',
-      company: job.author?.name || 'Empresa não informada',
-      location: job.city || location || 'Brasil',
-      salary: job.salaryDescription || undefined,
-      description: job.requirementMin || job.description || '',
-      url: job.link || `https://www.infojobs.com.br/vagas-de-emprego-em-${encodeURIComponent(query)}.aspx`,
-      source: 'infojobs' as const,
-      postedAt: job.updated || undefined,
-      jobType: job.contractType?.value || undefined,
-    }));
-  } catch {
-    // InfoJobs API might need credentials — return link to search
-    return [{
-      id: `infojobs-${Date.now()}`,
+    const jobs = (data.data || []).slice(0, limit);
+
+    return jobs.map((job: any, i: number) => {
+      // Determinar source pelo employer_website ou apply_link
+      let source: 'indeed' | 'infojobs' | 'linkedin' = 'indeed';
+      const applyLink = (job.job_apply_link || '').toLowerCase();
+      if (applyLink.includes('linkedin')) source = 'linkedin';
+      else if (applyLink.includes('infojobs')) source = 'infojobs';
+
+      // Formatar salário
+      let salary: string | undefined;
+      if (job.job_min_salary && job.job_max_salary) {
+        const currency = job.job_salary_currency || 'BRL';
+        salary = `${currency} ${Number(job.job_min_salary).toLocaleString('pt-BR')} – ${Number(job.job_max_salary).toLocaleString('pt-BR')}`;
+      }
+
+      // Formatar data
+      let postedAt: string | undefined;
+      if (job.job_posted_at_datetime_utc) {
+        const date = new Date(job.job_posted_at_datetime_utc);
+        const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
+        postedAt = diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : `${diff} dias atrás`;
+      }
+
+      return {
+        id: job.job_id || `jsearch-${i}-${Date.now()}`,
+        title: job.job_title || '',
+        company: job.employer_name || 'Empresa não informada',
+        location: job.job_city
+          ? `${job.job_city}${job.job_state ? `, ${job.job_state}` : ''}`
+          : location || 'Brasil',
+        salary,
+        description: job.job_description
+          ? job.job_description.slice(0, 300)
+          : '',
+        url: job.job_apply_link || job.job_google_link || '#',
+        source,
+        postedAt,
+        jobType: job.job_employment_type || undefined,
+      };
+    });
+  } catch (err: any) {
+    console.error('[jobSearch] JSearch error:', err?.response?.data || err?.message);
+    return fallbackResults(query, location);
+  }
+}
+
+// ─── Fallback quando não há API key ──────────────────────────────────────────
+
+function fallbackResults(query: string, location: string): JobResult[] {
+  return [
+    {
+      id: `indeed-fallback-${Date.now()}`,
+      title: `Ver vagas de "${query}" no Indeed`,
+      company: 'Indeed Brasil',
+      location: location || 'Brasil',
+      description: `Clique em "Ver vaga" para buscar diretamente no Indeed Brasil.`,
+      url: `https://br.indeed.com/jobs?q=${encodeURIComponent(query)}&l=${encodeURIComponent(location || '')}`,
+      source: 'indeed',
+      postedAt: 'Agora',
+    },
+    {
+      id: `infojobs-fallback-${Date.now()}`,
       title: `Vagas de ${query}`,
       company: 'Ver no InfoJobs',
       location: location || 'Brasil',
       description: `Busque "${query}" diretamente no InfoJobs Brasil`,
       url: `https://www.infojobs.com.br/vagas-de-emprego-em-${encodeURIComponent(query.replace(/\s+/g, '-').toLowerCase())}.aspx`,
       source: 'infojobs',
-    }];
-  }
+    },
+  ];
 }
+
+// ─── Export ───────────────────────────────────────────────────────────────────
 
 export const jobSearchService = {
   async search(query: string, location: string, sources: string[], limit = 10): Promise<JobResult[]> {
-    const promises: Promise<JobResult[]>[] = [];
+    // JSearch cobre indeed + linkedin + outros em uma chamada só
+    // sources é mantido para compatibilidade com o frontend mas JSearch busca em todos
+    const jobs = await searchJSearch(query, location, limit);
 
-    if (sources.includes('indeed')) promises.push(searchIndeed(query, location, limit));
-    if (sources.includes('infojobs')) promises.push(searchInfojobs(query, location, limit));
+    // Filtrar por source se especificado (linkedin não é suportado pelo frontend ainda)
+    if (sources.length > 0 && !sources.includes('indeed') && !sources.includes('infojobs')) {
+      return jobs;
+    }
 
-    const results = await Promise.allSettled(promises);
-    const jobs: JobResult[] = [];
-
-    results.forEach(r => {
-      if (r.status === 'fulfilled') jobs.push(...r.value);
-    });
-
-    // Sort by source variety
-    return jobs.slice(0, limit * sources.length);
+    return jobs;
   },
 };
