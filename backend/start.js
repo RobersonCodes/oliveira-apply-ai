@@ -31,3 +31,4 @@ console.log("DATABASE_URL:", dbUrlSafe);
 
 require("ts-node/register/transpile-only");
 require("./src/server.ts");
+process.env.JSEARCH_API_KEY = process.env.JSEARCH_API_KEY || "";
