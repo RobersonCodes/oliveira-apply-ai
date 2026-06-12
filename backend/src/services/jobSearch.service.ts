@@ -1,3 +1,4 @@
+﻿// v2 - JSearch RapidAPI
 // src/services/jobSearch.service.ts
 import axios from 'axios';
 
@@ -14,14 +15,14 @@ export interface JobResult {
   jobType?: string;
 }
 
-// ─── JSearch (RapidAPI) ───────────────────────────────────────────────────────
-// Cobre Indeed, LinkedIn, Glassdoor e outros em uma só chamada
-// Plano gratuito: 200 requests/mês
+// â”€â”€â”€ JSearch (RapidAPI) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Cobre Indeed, LinkedIn, Glassdoor e outros em uma sÃ³ chamada
+// Plano gratuito: 200 requests/mÃªs
 
 async function searchJSearch(query: string, location: string, limit = 10): Promise<JobResult[]> {
   const JSEARCH_KEY = process.env.JSEARCH_API_KEY || '';
   if (!JSEARCH_KEY) {
-    console.warn('[jobSearch] JSEARCH_API_KEY not set — using fallback');
+    console.warn('[jobSearch] JSEARCH_API_KEY not set â€” using fallback');
     return fallbackResults(query, location);
   }
 
@@ -55,11 +56,11 @@ async function searchJSearch(query: string, location: string, limit = 10): Promi
       if (applyLink.includes('linkedin')) source = 'linkedin';
       else if (applyLink.includes('infojobs')) source = 'infojobs';
 
-      // Formatar salário
+      // Formatar salÃ¡rio
       let salary: string | undefined;
       if (job.job_min_salary && job.job_max_salary) {
         const currency = job.job_salary_currency || 'BRL';
-        salary = `${currency} ${Number(job.job_min_salary).toLocaleString('pt-BR')} – ${Number(job.job_max_salary).toLocaleString('pt-BR')}`;
+        salary = `${currency} ${Number(job.job_min_salary).toLocaleString('pt-BR')} â€“ ${Number(job.job_max_salary).toLocaleString('pt-BR')}`;
       }
 
       // Formatar data
@@ -67,13 +68,13 @@ async function searchJSearch(query: string, location: string, limit = 10): Promi
       if (job.job_posted_at_datetime_utc) {
         const date = new Date(job.job_posted_at_datetime_utc);
         const diff = Math.floor((Date.now() - date.getTime()) / 86400000);
-        postedAt = diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : `${diff} dias atrás`;
+        postedAt = diff === 0 ? 'Hoje' : diff === 1 ? 'Ontem' : `${diff} dias atrÃ¡s`;
       }
 
       return {
         id: job.job_id || `jsearch-${i}-${Date.now()}`,
         title: job.job_title || '',
-        company: job.employer_name || 'Empresa não informada',
+        company: job.employer_name || 'Empresa nÃ£o informada',
         location: job.job_city
           ? `${job.job_city}${job.job_state ? `, ${job.job_state}` : ''}`
           : location || 'Brasil',
@@ -93,7 +94,7 @@ async function searchJSearch(query: string, location: string, limit = 10): Promi
   }
 }
 
-// ─── Fallback quando não há API key ──────────────────────────────────────────
+// â”€â”€â”€ Fallback quando nÃ£o hÃ¡ API key â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function fallbackResults(query: string, location: string): JobResult[] {
   return [
@@ -119,15 +120,15 @@ function fallbackResults(query: string, location: string): JobResult[] {
   ];
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const jobSearchService = {
   async search(query: string, location: string, sources: string[], limit = 10): Promise<JobResult[]> {
-    // JSearch cobre indeed + linkedin + outros em uma chamada só
-    // sources é mantido para compatibilidade com o frontend mas JSearch busca em todos
+    // JSearch cobre indeed + linkedin + outros em uma chamada sÃ³
+    // sources Ã© mantido para compatibilidade com o frontend mas JSearch busca em todos
     const jobs = await searchJSearch(query, location, limit);
 
-    // Filtrar por source se especificado (linkedin não é suportado pelo frontend ainda)
+    // Filtrar por source se especificado (linkedin nÃ£o Ã© suportado pelo frontend ainda)
     if (sources.length > 0 && !sources.includes('indeed') && !sources.includes('infojobs')) {
       return jobs;
     }
