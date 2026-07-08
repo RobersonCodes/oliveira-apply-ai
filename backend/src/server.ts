@@ -13,6 +13,7 @@ import { connectDatabase } from './config/database';
 import logger from './utils/logger';
 import { errorHandler } from './middlewares/errorHandler';
 import { startEmailDigestJob } from './jobs/emailDigest.job';
+import { billingController } from './controllers/billing.controller';
 
 // Routes
 import authRoutes from './routes/auth.routes';
@@ -89,6 +90,12 @@ const authLimiter = rateLimit({
   max: 20,
   message: { success: false, message: 'Muitas tentativas de login. Tente novamente em 15 minutos.' },
 });
+
+// ─── Stripe webhook ───────────────────────────────────────────────────────────
+// Precisa do corpo cru (Buffer) pra validar a assinatura — tem que ser registrada
+// ANTES do express.json() global, senão o body já chega parseado/consumido e
+// stripe.webhooks.constructEvent() falha em toda chamada real da Stripe.
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), billingController.handleWebhook);
 
 // ─── Body Parsing ─────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
