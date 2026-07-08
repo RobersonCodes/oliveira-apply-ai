@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { AppError } from '../utils/AppError';
+import { setAuthCookies, clearAuthCookies } from '../utils/authCookies';
 
 export class AuthController {
   async register(req: Request, res: Response, next: NextFunction) {
@@ -8,7 +9,8 @@ export class AuthController {
       const { email, name, password } = req.body;
       if (!email || !name || !password) throw new AppError('Email, nome e senha são obrigatórios', 400);
       const result = await authService.register({ email, name, password });
-      res.status(201).json({ success: true, data: result });
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+      res.status(201).json({ success: true, data: { user: result.user, csrfToken: result.csrfToken, expiresIn: result.expiresIn } });
     } catch (err) { next(err); }
   }
 
@@ -17,32 +19,26 @@ export class AuthController {
       const { email, password } = req.body;
       if (!email || !password) throw new AppError('Email e senha são obrigatórios', 400);
       const result = await authService.login({ email, password }, req.ip);
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true, secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none', maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-      res.json({ success: true, data: { user: result.user, accessToken: result.accessToken, refreshToken: result.refreshToken, expiresIn: result.expiresIn } });
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+      res.json({ success: true, data: { user: result.user, csrfToken: result.csrfToken, expiresIn: result.expiresIn } });
     } catch (err) { next(err); }
   }
 
   async refresh(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies.refreshToken || req.body.refreshToken;
+      const token = req.cookies?.refreshToken;
       if (!token) throw new AppError('Refresh token required', 401);
       const result = await authService.refreshToken(token);
-      res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true, secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none', maxAge: 7 * 24 * 60 * 60 * 1000,
-      });
-      res.json({ success: true, data: { accessToken: result.accessToken, refreshToken: result.refreshToken, expiresIn: result.expiresIn } });
+      setAuthCookies(res, result.accessToken, result.refreshToken);
+      res.json({ success: true, data: { csrfToken: result.csrfToken, expiresIn: result.expiresIn } });
     } catch (err) { next(err); }
   }
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies.refreshToken || req.body.refreshToken;
+      const token = req.cookies?.refreshToken;
       await authService.logout((req as any).userId, token);
-      res.clearCookie('refreshToken');
+      clearAuthCookies(res);
       res.json({ success: true, message: 'Logged out successfully' });
     } catch (err) { next(err); }
   }
@@ -60,7 +56,7 @@ export class AuthController {
         },
       });
       if (!user) throw new AppError('User not found', 404);
-      res.json({ success: true, data: user });
+      res.json({ success: true, data: { ...user, csrfToken: (req as any).csrf } });
     } catch (err) { next(err); }
   }
 }

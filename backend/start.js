@@ -1,6 +1,13 @@
-﻿process.env.JWT_SECRET = process.env.JWT_SECRET || "oliveira-super-secret-jwt-2024";
-process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "oliveira-refresh-secret-2024";
-process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || "oliveira-encrypt-key-32chars!!!";
+﻿const REQUIRED_SECRETS = ["JWT_SECRET", "JWT_REFRESH_SECRET", "ENCRYPTION_KEY"];
+const missingSecrets = REQUIRED_SECRETS.filter((name) => !process.env[name]);
+if (missingSecrets.length > 0) {
+  console.error(
+    `FATAL: variáveis de ambiente obrigatórias ausentes: ${missingSecrets.join(", ")}. ` +
+    "Configure-as no Railway (painel do backend) antes de subir o servidor."
+  );
+  process.exit(1);
+}
+
 process.env.OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
 process.env.STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY || "";
 process.env.STRIPE_PUBLISHABLE_KEY = process.env.STRIPE_PUBLISHABLE_KEY || "";

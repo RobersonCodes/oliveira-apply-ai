@@ -45,7 +45,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     async function checkOnboarding() {
       if (typeof window === 'undefined') return;
-      if (!localStorage.getItem('accessToken')) {
+      if (!user) await fetchMe();
+      if (!useAuthStore.getState().isAuthenticated) {
         router.push('/auth/login');
         return;
       }

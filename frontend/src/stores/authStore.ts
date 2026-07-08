@@ -2,7 +2,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { authApi, setTokens, clearTokens } from '@/lib/api';
+import { authApi, setCsrfToken, clearTokens } from '@/lib/api';
 
 interface User {
   id: string;
@@ -47,8 +47,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const { data } = await authApi.login({ email, password });
-          const { accessToken, refreshToken, user } = data.data;
-          setTokens(accessToken, refreshToken);
+          const { user, csrfToken } = data.data;
+          setCsrfToken(csrfToken);
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
           const msg = error.response?.data?.message || 'Falha ao fazer login';
@@ -61,8 +61,8 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoading: true, error: null });
         try {
           const { data } = await authApi.register(formData);
-          const { accessToken, refreshToken, user } = data.data;
-          setTokens(accessToken, refreshToken);
+          const { user, csrfToken } = data.data;
+          setCsrfToken(csrfToken);
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (error: any) {
           const msg = error.response?.data?.message || 'Falha ao criar conta';
@@ -73,8 +73,7 @@ export const useAuthStore = create<AuthState>()(
 
       logout: async () => {
         try {
-          const refreshToken = localStorage.getItem('refreshToken');
-          if (refreshToken) await authApi.logout(refreshToken);
+          await authApi.logout();
         } catch {
           // ignore
         } finally {
@@ -84,11 +83,12 @@ export const useAuthStore = create<AuthState>()(
       },
 
       fetchMe: async () => {
-        if (!localStorage.getItem('accessToken')) return;
         set({ isLoading: true });
         try {
           const { data } = await authApi.me();
-          set({ user: data.data, isAuthenticated: true, isLoading: false });
+          const { csrfToken, ...user } = data.data;
+          setCsrfToken(csrfToken);
+          set({ user, isAuthenticated: true, isLoading: false });
         } catch {
           clearTokens();
           set({ user: null, isAuthenticated: false, isLoading: false });

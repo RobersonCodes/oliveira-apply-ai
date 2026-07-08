@@ -2,15 +2,33 @@ import { Request, Response, NextFunction } from 'express';
 import { authService } from '../services/auth.service';
 import { AppError } from '../utils/AppError';
 
+const SAFE_METHODS = ['GET', 'HEAD', 'OPTIONS'];
+
 export function authenticate(req: Request, _res: Response, next: NextFunction) {
   try {
     const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AppError('Authorization header required', 401);
+    const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.split(' ')[1] : undefined;
+    const token = req.cookies?.accessToken || bearerToken;
+
+    if (!token) {
+      throw new AppError('Autenticação necessária', 401);
     }
-    const token = authHeader.split(' ')[1];
+
     const payload = authService.verifyAccessToken(token);
     (req as any).userId = payload.userId;
+    (req as any).csrf = payload.csrf;
+
+    // O access token vive num cookie httpOnly enviado automaticamente pelo browser,
+    // então requisições que mudam estado precisam provar que quem chamou de fato leu
+    // o csrfToken (devolvido só no corpo da resposta de login/refresh/me) — um site
+    // atacante não consegue ler esse valor por causa do same-origin policy.
+    if (!SAFE_METHODS.includes(req.method)) {
+      const headerCsrf = req.headers['x-csrf-token'];
+      if (!headerCsrf || headerCsrf !== payload.csrf) {
+        throw new AppError('CSRF token inválido ou ausente', 403);
+      }
+    }
+
     next();
   } catch (err) { next(err); }
 }

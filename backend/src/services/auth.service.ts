@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { prisma } from '../config/database';
 import { AppError } from '../utils/AppError';
 import logger from '../utils/logger';
@@ -103,7 +104,12 @@ export class AuthService {
   }
 
   async generateTokens(userId: string) {
-    const accessToken = jwt.sign({ userId }, JWT_SECRET, {
+    // csrf: valor aleatório embutido no access token e devolvido ao cliente no corpo
+    // da resposta (nunca em cookie) — usado no padrão synchronizer token para proteger
+    // contra CSRF já que access/refresh token agora vivem só em cookies httpOnly.
+    const csrf = crypto.randomBytes(20).toString('hex');
+
+    const accessToken = jwt.sign({ userId, csrf }, JWT_SECRET, {
       expiresIn: JWT_EXPIRES_IN,
     });
 
@@ -118,12 +124,12 @@ export class AuthService {
       data: { userId, token: refreshToken, expiresAt },
     });
 
-    return { accessToken, refreshToken, expiresIn: JWT_EXPIRES_IN };
+    return { accessToken, refreshToken, expiresIn: JWT_EXPIRES_IN, csrfToken: csrf };
   }
 
   verifyAccessToken(token: string) {
     try {
-      return jwt.verify(token, JWT_SECRET) as { userId: string };
+      return jwt.verify(token, JWT_SECRET) as { userId: string; csrf: string };
     } catch {
       throw new AppError('Invalid or expired token', 401);
     }

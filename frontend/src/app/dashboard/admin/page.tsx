@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { Eye, EyeOff, ArrowRight, Loader2, Github, Chrome } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { setCsrfToken } from '@/lib/api';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -20,6 +21,7 @@ export default function LoginPage() {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
@@ -31,8 +33,7 @@ export default function LoginPage() {
         return;
       }
 
-      localStorage.setItem('accessToken', data.data.accessToken);
-      localStorage.setItem('refreshToken', data.data.refreshToken);
+      setCsrfToken(data.data.csrfToken);
       toast.success('Login realizado com sucesso!');
       window.location.href = '/dashboard';
     } catch (err) {

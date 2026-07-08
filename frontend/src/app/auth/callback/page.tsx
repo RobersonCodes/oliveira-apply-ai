@@ -1,29 +1,31 @@
 'use client';
 import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { setTokens } from '@/lib/api';
+import { useAuthStore } from '@/stores/authStore';
 import { Loader2 } from 'lucide-react';
 
 function CallbackHandler() {
   const searchParams = useSearchParams();
+  const fetchMe = useAuthStore((s) => s.fetchMe);
 
   useEffect(() => {
-    const token = searchParams.get('token');
-    const refresh = searchParams.get('refresh');
     const error = searchParams.get('error');
-
     if (error) {
       window.location.href = '/auth/login?error=' + error;
       return;
     }
 
-    if (token && refresh) {
-      setTokens(token, refresh);
-      window.location.href = '/dashboard';
-    } else {
-      window.location.href = '/auth/login?error=oauth';
-    }
-  }, [searchParams]);
+    // O backend já setou os cookies httpOnly de sessão no redirect — só falta
+    // confirmar a sessão e puxar o csrfToken pra memória via /auth/me.
+    (async () => {
+      await fetchMe();
+      if (useAuthStore.getState().isAuthenticated) {
+        window.location.href = '/dashboard';
+      } else {
+        window.location.href = '/auth/login?error=oauth';
+      }
+    })();
+  }, [searchParams, fetchMe]);
 
   return (
     <div className="min-h-screen bg-[#080812] flex items-center justify-center">

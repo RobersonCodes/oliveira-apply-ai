@@ -25,10 +25,13 @@ export function errorHandler(
     if (err.code === 'P2025') return res.status(404).json({ success: false, message: 'Registro não encontrado.', code: 'NOT_FOUND' });
   }
 
-  logger.error('Unhandled error', { 
-  message: err instanceof Error ? err.message : String(err),
-  stack: err instanceof Error ? err.stack : undefined,
-  name: err instanceof Error ? err.name : typeof err,
-  path: req.path, 
-  method: req.method 
-})};
+  logger.error('Unhandled error', {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+    name: err instanceof Error ? err.name : typeof err,
+    path: req.path,
+    method: req.method,
+  });
+
+  return res.status(500).json({ success: false, message: 'Erro interno do servidor', code: 'INTERNAL_ERROR' });
+}

@@ -81,11 +81,11 @@ export default function OnboardingPage() {
   useEffect(() => {
     async function init() {
       if (typeof window === 'undefined') return;
-      if (!localStorage.getItem('accessToken')) {
+      if (!user) await fetchMe();
+      if (!useAuthStore.getState().isAuthenticated) {
         router.push('/auth/login');
         return;
       }
-      if (!user) await fetchMe();
       try {
         const { data } = await api.get('/onboarding/status');
         if (data.data.onboardingCompleted) {

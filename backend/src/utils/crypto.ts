@@ -6,7 +6,10 @@ const IV_LENGTH = 16;
 const TAG_LENGTH = 16;
 
 function getKey(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY || 'default-secret-key-change-in-production!!';
+  const secret = process.env.ENCRYPTION_KEY;
+  if (!secret) {
+    throw new Error('ENCRYPTION_KEY não configurada — obrigatória para criptografar/descriptografar dados sensíveis');
+  }
   return crypto.scryptSync(secret, 'oliveira-salt', KEY_LENGTH);
 }
 

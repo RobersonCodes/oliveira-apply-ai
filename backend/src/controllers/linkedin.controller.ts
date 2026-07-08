@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import axios from 'axios';
 import { prisma } from '../config/database';
 import { authService } from '../services/auth.service';
 import { AppError } from '../utils/AppError';
+import { setAuthCookies } from '../utils/authCookies';
 import logger from '../utils/logger';
 
 const LINKEDIN_CLIENT_ID = process.env.LINKEDIN_CLIENT_ID || '';
@@ -15,7 +17,14 @@ const SCOPES = ['openid', 'profile', 'email'].join(' ');
 export const linkedinController = {
   // Step 1: Redirect user to LinkedIn OAuth
   redirect(req: Request, res: Response) {
-    const state = Math.random().toString(36).substring(7);
+    const state = crypto.randomBytes(24).toString('hex');
+    res.cookie('li_oauth_state', state, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 5 * 60 * 1000,
+    });
+
     const url = new URL('https://www.linkedin.com/oauth/v2/authorization');
     url.searchParams.set('response_type', 'code');
     url.searchParams.set('client_id', LINKEDIN_CLIENT_ID);
@@ -28,9 +37,17 @@ export const linkedinController = {
   // Step 2: Handle OAuth callback
   async callback(req: Request, res: Response, next: NextFunction) {
     try {
-      const { code, error } = req.query;
+      const { code, error, state } = req.query;
+      const expectedState = req.cookies?.li_oauth_state;
+      res.clearCookie('li_oauth_state');
+
       if (error || !code) {
         return res.redirect(`${FRONTEND_URL}/auth/login?error=linkedin_denied`);
+      }
+
+      if (!expectedState || state !== expectedState) {
+        logger.warn('LinkedIn OAuth state mismatch — possible CSRF attempt');
+        return res.redirect(`${FRONTEND_URL}/auth/login?error=linkedin_invalid_state`);
       }
 
       // Exchange code for access token
@@ -88,11 +105,10 @@ export const linkedinController = {
       const tokens = await authService.generateTokens(user.id);
       logger.info(`LinkedIn login: ${user.email}`);
 
-      // Redirect to frontend with tokens
-      const redirectUrl = new URL(`${FRONTEND_URL}/auth/callback`);
-      redirectUrl.searchParams.set('token', tokens.accessToken);
-      redirectUrl.searchParams.set('refresh', tokens.refreshToken);
-      res.redirect(redirectUrl.toString());
+      // Tokens vão em cookies httpOnly (nunca expostos ao JS/URL) — o frontend só
+      // precisa saber que deu certo e então chama /auth/me pra puxar user + csrfToken.
+      setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
+      res.redirect(`${FRONTEND_URL}/auth/callback?linkedin=success`);
     } catch (err) {
       logger.error('LinkedIn OAuth error:', err);
       res.redirect(`${FRONTEND_URL}/auth/login?error=linkedin_failed`);

@@ -45,18 +45,25 @@ const PORT = process.env.PORT || 3001;
 });
 
 // ─── CORS ────────────────────────────────────────────────────────────────────
-app.use(cors({
-  origin: true,
+const allowedOrigins = [process.env.FRONTEND_URL, 'http://localhost:3000'].filter(
+  (v): v is string => !!v,
+);
+
+const corsOptions: cors.CorsOptions = {
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin não permitida por CORS: ${origin}`));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
-app.options('*', cors({
-  origin: true,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 
 // ─── Security ────────────────────────────────────────────────────────────────
 app.use(helmet({

@@ -5,66 +5,68 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 export const api = axios.create({
   baseURL: API_URL,
   timeout: 30000,
+  withCredentials: true, // access/refresh token vivem em cookies httpOnly, não em JS
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Request interceptor — attach access token
+// csrfToken só existe em memória (nunca localStorage/cookie legível por JS) — vem no
+// corpo da resposta de login/register/refresh/me e precisa ser ecoado como header em
+// toda requisição que muda estado, provando que quem chamou leu uma resposta legítima
+// da API (um site atacante não consegue, por causa do same-origin policy).
+let csrfToken: string | null = null;
+
+export function setCsrfToken(token: string | null) {
+  csrfToken = token;
+}
+
+export function getCsrfToken() {
+  return csrfToken;
+}
+
+// Mantido pelo nome por compatibilidade com o restante do app — hoje só limpa o
+// csrfToken em memória; os cookies de sessão são limpos pelo backend no /auth/logout.
+export function clearTokens() {
+  setCsrfToken(null);
+}
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
+  if (csrfToken && config.headers) {
+    config.headers['X-CSRF-Token'] = csrfToken;
   }
   return config;
 });
 
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (v: string) => void; reject: (e: unknown) => void }> = [];
+let failedQueue: Array<{ resolve: () => void; reject: (e: unknown) => void }> = [];
 
-function processQueue(error: unknown, token: string | null = null) {
+function processQueue(error: unknown) {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) reject(error);
-    else resolve(token!);
+    else resolve();
   });
   failedQueue = [];
 }
 
-// Response interceptor — auto-refresh token
+// Response interceptor — auto-refresh via cookie httpOnly (sem token nenhum em JS)
 api.interceptors.response.use(
   (r) => r,
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest._retry && !originalRequest.url?.includes('/auth/')) {
       if (isRefreshing) {
-        return new Promise((resolve, reject) => {
+        return new Promise<void>((resolve, reject) => {
           failedQueue.push({ resolve, reject });
-        }).then((token) => {
-          originalRequest.headers!.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        });
+        }).then(() => api(originalRequest));
       }
 
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        processQueue(error);
-        isRefreshing = false;
-        clearTokens();
-        window.location.href = '/auth/login';
-        return Promise.reject(error);
-      }
-
       try {
-        const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
-        const { accessToken, refreshToken: newRefresh } = data.data;
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('refreshToken', newRefresh);
-        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
-        processQueue(null, accessToken);
+        const { data } = await axios.post(`${API_URL}/auth/refresh`, null, { withCredentials: true });
+        setCsrfToken(data.data.csrfToken);
+        processQueue(null);
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
@@ -80,16 +82,6 @@ api.interceptors.response.use(
   },
 );
 
-export function setTokens(accessToken: string, refreshToken: string) {
-  localStorage.setItem('accessToken', accessToken);
-  localStorage.setItem('refreshToken', refreshToken);
-}
-
-export function clearTokens() {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-}
-
 export function extractError(error: unknown): string {
   if (axios.isAxiosError(error)) {
     return error.response?.data?.message || error.message || 'Erro desconhecido';
@@ -104,7 +96,7 @@ export const authApi = {
   login: (data: { email: string; password: string }) => api.post('/auth/login', data),
   register: (data: any) => api.post('/auth/register', data),
   me: () => api.get('/auth/me'),
-  logout: (refreshToken: string) => api.post('/auth/logout', { refreshToken }),
+  logout: () => api.post('/auth/logout'),
   linkedinStatus: () => api.get('/auth/linkedin/status'),
   linkedinDisconnect: () => api.post('/auth/linkedin/disconnect'),
   linkedinImportProfile: () => api.post('/auth/linkedin/import-profile'),
