@@ -17,6 +17,14 @@ export function setAuthCookies(res: Response, accessToken: string, refreshToken:
 }
 
 export function clearAuthCookies(res: Response) {
-  res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
+  // clearCookie precisa dos MESMOS atributos secure/sameSite usados ao criar o
+  // cookie — em cross-site (Vercel x Railway) SameSite=None; Secure — senão o
+  // navegador não substitui/expira o cookie certo e a sessão "sobrevive" ao logout.
+  const common = {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: (isProd ? 'none' : 'lax') as 'none' | 'lax',
+  };
+  res.clearCookie('accessToken', common);
+  res.clearCookie('refreshToken', common);
 }

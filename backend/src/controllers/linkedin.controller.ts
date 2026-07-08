@@ -39,7 +39,11 @@ export const linkedinController = {
     try {
       const { code, error, state } = req.query;
       const expectedState = req.cookies?.li_oauth_state;
-      res.clearCookie('li_oauth_state');
+      res.clearCookie('li_oauth_state', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      });
 
       if (error || !code) {
         return res.redirect(`${FRONTEND_URL}/auth/login?error=linkedin_denied`);
