@@ -22,7 +22,7 @@
 
 ---
 
-> **Nota de transparência**: esta reescrita segue o mesmo princípio do restante do portfólio — todo número aqui foi conferido no código (19 controllers, 20 arquivos de rota, 15 models Prisma). Há uma seção específica, [Automação e conformidade](#automação-e-conformidade), sobre módulos internos que **não são vendidos como recurso** nesta documentação por ainda não terem passado por revisão de conformidade com termos de uso de terceiros — ver essa seção antes de avaliar o projeto como "pronto para produção".
+> **Nota de transparência**: todo número aqui foi conferido no código (19 controllers, 20 arquivos de rota, 15 models Prisma). Tem uma seção específica, [Automação e conformidade](#automação-e-conformidade), sobre módulos internos que **não entram aqui como recurso comercial** por ainda não terem passado por revisão de conformidade com termos de uso de terceiros — vale ler antes de considerar isso "pronto pra produção".
 
 ## Sumário
 
@@ -150,7 +150,7 @@ O backend também contém dois módulos experimentais que **não são apresentad
 - **`conexaoCirurgica`**: agenda uma sequência de interações (seguir, curtir, comentar, pedir conexão) ao longo de ~14 dias antes de uma candidatura.
 - `automation.service.ts` inclui lógica para reduzir a detecção de automação pelo navegador headless.
 
-Documentá-los aqui apenas para registro de auditoria do código, não como diferencial de produto — ambos ficam fora do roadmap até uma revisão de conformidade com os termos de uso do LinkedIn, e credenciais associadas a eles (`ENCRYPTION_KEY`) exigem o mesmo cuidado de qualquer segredo de produção.
+Cito os dois aqui só pra registro, não como diferencial de produto — ficam fora do roadmap até eu revisar isso com calma contra os termos de uso do LinkedIn, e as credenciais associadas (`ENCRYPTION_KEY`) merecem o mesmo cuidado de qualquer segredo de produção.
 
 ---
 
@@ -211,7 +211,7 @@ Variáveis obrigatórias em produção: `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET
 | Observabilidade | 🟡 Winston/morgan (logs), sem tracing | ✅ |
 | Módulos de automação sensíveis | 🟡 Existem, não comercializados até revisão de conformidade | Depende — a maioria dos produtos consolidados evita esse território deliberadamente |
 
-**O que falta para reduzir essa distância**: testes e CI são o gap mais simples de fechar. O mais importante estrategicamente é decidir o destino dos módulos de automação sensível — removê-los, isolá-los como opt-in avançado com termo de responsabilidade explícito, ou reescrevê-los sem as partes que dependem de evasão de detecção — antes de qualquer divulgação pública mais ampla do produto.
+Testes e CI são o gap mais fácil de fechar. A decisão que pesa de verdade é o destino dos módulos de automação sensível — removê-los, isolá-los como opt-in avançado com termo de responsabilidade explícito, ou reescrevê-los sem a parte que depende de evasão de detecção — antes de qualquer divulgação mais ampla do produto.
 
 ---
 
